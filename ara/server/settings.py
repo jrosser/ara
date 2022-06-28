@@ -91,6 +91,18 @@ DISTRIBUTED_SQLITE = settings.get("DISTRIBUTED_SQLITE", False)
 # Under which URL should requests be delegated to the distributed sqlite wsgi application
 DISTRIBUTED_SQLITE_PREFIX = settings.get("DISTRIBUTED_SQLITE_PREFIX", "ara-report")
 
+# Map distributed sqlite mode to a Zuul API
+# Databases are downloaded from log urls retrieved from a zuul api
+# /zuul_tenant/job_id/ara-report will query DISTRIBUTED_SQLITE_ZUUL_API
+# and download the sqlite file from the log storage
+DISTRIBUTED_SQLITE_ZUUL = settings.get("DISTRIBUTED_SQLITE_ZUUL", False)
+
+# Zuul API endpoint for distributed sqlite zuul mode
+DISTRIBUTED_SQLITE_ZUUL_API = settings.get("DISTRIBUTED_SQLITE_ZUUL_API", "zuul.example.com/api")
+
+# Location of the sqlite file in a zuul job log
+DISTRIBUTED_SQLITE_ZUUL_DB_PATH = settings.get("DISTRIBUTED_SQLITE_ZUUL_DB_PATH", "logs/ara-report/ansible.sqlite")
+
 # Root directory under which databases will be found relative to the requested URLs.
 # This will restrict where the WSGI application will go to seek out databases.
 # For example, the URL "example.org/some/path/ara-report" would translate to
@@ -278,6 +290,9 @@ if not os.path.exists(DEFAULT_SETTINGS) and "ARA_SETTINGS" not in os.environ:
         DISTRIBUTED_SQLITE=DISTRIBUTED_SQLITE,
         DISTRIBUTED_SQLITE_PREFIX=DISTRIBUTED_SQLITE_PREFIX,
         DISTRIBUTED_SQLITE_ROOT=DISTRIBUTED_SQLITE_ROOT,
+        DISTRIBUTED_SQLITE_ZUUL=DISTRIBUTED_SQLITE_ZUUL,
+        DISTRIBUTED_SQLITE_ZUUL_API=DISTRIBUTED_SQLITE_ZUUL_API,
+        DISTRIBUTED_SQLITE_ZUUL_DB_PATH=DISTRIBUTED_SQLITE_ZUUL_DB_PATH,
         TIME_ZONE=TIME_ZONE,
     )
     with open(DEFAULT_SETTINGS, "w+") as settings_file:

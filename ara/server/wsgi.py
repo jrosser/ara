@@ -3,6 +3,9 @@
 
 import logging
 import os
+import requests
+import subprocess
+import urllib
 
 from ara.setup.exceptions import MissingDjangoException
 
@@ -63,15 +66,37 @@ def distributed_sqlite(environ, start_response):
 
     # Make sure we aren't escaping outside the root and the directory exists
     db_dir = os.path.abspath(os.path.join(root, fs_path.lstrip("/")))
+    db_file = os.path.join(db_dir, "ansible.sqlite")
     if not db_dir.startswith(root):
         logger.warn("Ignoring request: path is outside the root (%s)" % db_dir)
         return handle_404(start_response)
+    elif settings.DISTRIBUTED_SQLITE_ZUUL:
+        if not os.path.exists(db_file):
+            # find the URL of the zuul sqlite file for ara location /{tenant}/{build-uuid}/ara-report
+            logger.info("Querying zuul api for (%s)" % db_file)
+            parts = path_info.split('/')
+            api_url = settings.DISTRIBUTED_SQLITE_ZUUL_API + "/tenant/" + parts[1] + "/builds?uuid=" + parts[2]
+            api_resp = requests.get(api_url)
+            if not api_resp.ok:
+                return handle_404(start_response)
+            log_url = api_resp.json()[0].get('log_url')
+            if not log_url:
+                return handle_404(start_response)
+            zuul_sqlite_url = api_resp.json()[0].get('log_url') + "/" + settings.DISTRIBUTED_SQLITE_ZUUL_DB_PATH
+
+            # download the sqlite file
+            logger.warn("Downloading %s" % zuul_sqlite_url)
+            os.makedirs(os.path.dirname(db_file), exist_ok=True)
+            try:
+                urllib.request.urlretrieve(zuul_sqlite_url, db_file)
+            except urllib.error.URLError as e:
+                logger.warn("Could not download sqlite '%s'" % e.reason)
+                return handle_404(start_response)
+
     elif not os.path.exists(db_dir):
         logger.warn("Ignoring request: database directory not found (%s)" % db_dir)
         return handle_404(start_response)
 
-    # Find the database file and make sure it exists
-    db_file = os.path.join(db_dir, "ansible.sqlite")
     if not os.path.exists(db_file):
         logger.warn("Ignoring request: database file not found (%s)" % db_file)
         return handle_404(start_response)
